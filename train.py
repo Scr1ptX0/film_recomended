@@ -25,6 +25,15 @@ def main() -> None:
     from utils.data_loader import DataLoader
     loader = DataLoader()
 
+    for fname in ("ratings.dat", "movies.dat", "users.dat"):
+        fpath = DATA_DIR / fname
+        if not fpath.exists():
+            raise FileNotFoundError(
+                f"Dataset file not found: {fpath}\n"
+                f"Download MovieLens 1M from https://grouplens.org/datasets/movielens/1m/ "
+                f"and extract to {DATA_DIR}/"
+            )
+
     ratings_df = loader.load_ratings(str(DATA_DIR / "ratings.dat"))
     movies_df  = loader.load_movies(str(DATA_DIR / "movies.dat"), ratings_df=ratings_df)
     users_df   = loader.load_users(str(DATA_DIR / "users.dat"))

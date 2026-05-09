@@ -7,20 +7,70 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import normalize
 
 
+def _manual_tfidf(corpus: list[str]) -> tuple[np.ndarray, list[str]]:
+    """
+    Manual TF-IDF implementation for demonstration and validation.
+
+    TF(t, d)  = count(t in d) / len(d)
+    IDF(t)    = log(N / DF(t))   where DF = number of docs containing t
+    W(t, d)   = TF(t, d) × IDF(t)
+
+    Returns L2-normalised matrix (n_docs × n_terms) and vocabulary list.
+    """
+    tokenized = [doc.split() for doc in corpus]
+    vocab_set: set[str] = set()
+    for tokens in tokenized:
+        vocab_set.update(tokens)
+    vocab = sorted(vocab_set)
+    term_idx = {t: i for i, t in enumerate(vocab)}
+
+    n_docs   = len(corpus)
+    n_terms  = len(vocab)
+    tf_matrix = np.zeros((n_docs, n_terms), dtype=np.float32)
+
+    for d, tokens in enumerate(tokenized):
+        if not tokens:
+            continue
+        for t in tokens:
+            tf_matrix[d, term_idx[t]] += 1.0
+        tf_matrix[d] /= len(tokens)  # normalize by doc length
+
+    # IDF: log(N / DF)  — add 1 to DF to avoid division by zero
+    df = (tf_matrix > 0).sum(axis=0).astype(np.float32)
+    idf = np.log(n_docs / (df + 1)).astype(np.float32)
+
+    tfidf = tf_matrix * idf
+
+    # L2 normalization row-wise
+    norms = np.linalg.norm(tfidf, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return (tfidf / norms), vocab
+
+
 class ContentBasedRecommender:
     """
     Content-based filtering using TF-IDF on movie genres.
 
     TF-IDF formula: W(i,j) = TF(i,j) × log(N / DF(i))
     Similarity:     cosine(q, d) = (q·d) / (‖q‖ × ‖d‖)
+
+    Uses sklearn TfidfVectorizer for production recommendations;
+    _manual_tfidf() provides a from-scratch implementation for validation.
     """
 
     def __init__(self) -> None:
-        self.vectorizer:   TfidfVectorizer | None = None
-        self.tfidf_matrix: np.ndarray | None = None
-        self.movie_idx:    dict[int, int]    = {}   # movieId → row index
-        self.movies_df:    pd.DataFrame | None = None
-        self._nn:          NearestNeighbors | None = None
+        self.vectorizer:    TfidfVectorizer | None = None
+        self.tfidf_matrix:  np.ndarray | None = None
+        self.manual_tfidf_matrix: np.ndarray | None = None
+        self.manual_vocab:  list[str] = []
+        self.movie_idx:     dict[int, int] = {}   # movieId → row index
+        self.movies_df:     pd.DataFrame | None = None
+        self._nn:           NearestNeighbors | None = None
+
+    def __repr__(self) -> str:
+        fitted = self.tfidf_matrix is not None
+        n = len(self.movies_df) if self.movies_df is not None else 0
+        return f"ContentBasedRecommender(movies={n}, fitted={fitted})"
 
     # ── Fit ───────────────────────────────────────────────────────────────────
     def fit(self, movies_df: pd.DataFrame) -> None:
@@ -30,8 +80,14 @@ class ContentBasedRecommender:
             for idx, mid in enumerate(self.movies_df["movieId"])
         }
 
+        corpus = self.movies_df["genres_str"].tolist()
+
+        # Manual TF-IDF (own implementation — for demonstration/comparison)
+        self.manual_tfidf_matrix, self.manual_vocab = _manual_tfidf(corpus)
+
+        # sklearn TF-IDF (used for production recommendations — handles edge cases)
         self.vectorizer = TfidfVectorizer(token_pattern=r"[^\s]+")
-        sparse = self.vectorizer.fit_transform(self.movies_df["genres_str"])
+        sparse = self.vectorizer.fit_transform(corpus)
         self.tfidf_matrix = normalize(sparse, norm="l2").toarray().astype(np.float32)
 
         n_neighbors = min(21, len(self.movies_df))

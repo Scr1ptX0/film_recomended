@@ -15,6 +15,9 @@ OCCUPATION_MAP = {
 
 
 class DataLoader:
+    def __repr__(self) -> str:
+        return "DataLoader(format=MovieLens-1M, encoding=latin-1)"
+
     def load_movies(self, path: str, ratings_df: pd.DataFrame | None = None) -> pd.DataFrame:
         df = pd.read_csv(
             path,
@@ -23,7 +26,8 @@ class DataLoader:
             encoding="latin-1",
             names=["movieId", "title", "genres"],
         )
-        df["year"] = df["title"].str.extract(r"\((\d{4})\)$").astype(float)
+        year_extracted = df["title"].str.extract(r"\((\d{4})\)$")[0]
+        df["year"] = pd.to_numeric(year_extracted, errors="coerce")
         df["genres_str"] = df["genres"].str.replace("|", " ", regex=False)
         df["genres_list"] = df["genres"].str.split("|")
         if ratings_df is not None:

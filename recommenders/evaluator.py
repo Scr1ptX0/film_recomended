@@ -20,6 +20,11 @@ class MetricsEvaluator:
         self._train_df: pd.DataFrame | None = None
         self._test_df:  pd.DataFrame | None = None
 
+    def __repr__(self) -> str:
+        n_train = len(self._train_df) if self._train_df is not None else 0
+        n_test  = len(self._test_df)  if self._test_df  is not None else 0
+        return f"MetricsEvaluator(train={n_train}, test={n_test})"
+
     # ── Temporal train/test split ──────────────────────────────────────────
     def train_test_split_temporal(
         self, ratings_df: pd.DataFrame, test_ratio: float = 0.2
@@ -121,7 +126,8 @@ class MetricsEvaluator:
                     if recs_df is None or recs_df.empty:
                         continue
                     rec_ids = list(recs_df["movieId"].values[:k])
-                except Exception:
+                except Exception as e:
+                    print(f"  [MetricsEvaluator] user {uid} skipped: {e}")
                     continue
 
                 hits  = [1 if mid in relevant else 0 for mid in rec_ids]

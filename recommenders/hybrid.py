@@ -26,6 +26,9 @@ class HybridRecommender:
         self.cb = cb
         self.cf = cf
 
+    def __repr__(self) -> str:
+        return f"HybridRecommender(cb={self.cb!r}, cf={self.cf!r})"
+
     def get_alpha(self, user_id: int, ratings_df: pd.DataFrame) -> float:
         n = int((ratings_df["userId"] == user_id).sum())
         if n < 10:

@@ -169,8 +169,8 @@ class CollaborativeFilterRecommender:
             print(f"  implicit unavailable ({exc}), using custom ALS …")
             self._user_factors, self._item_factors, self._training_loss = _als_custom(
                 self.confidence_matrix,
-                n_factors=self.N_FACTORS,
-                n_iterations=self.N_ITERATIONS,
+                n_factors=self.N_FACTORS,          # linked to class constant
+                n_iterations=self.N_ITERATIONS,    # linked to class constant
                 regularization=self.REGULARIZATION,
             )
 
@@ -233,6 +233,12 @@ class CollaborativeFilterRecommender:
 
     def get_training_loss(self) -> list[float]:
         return self._training_loss
+
+    def __repr__(self) -> str:
+        fitted = self._item_factors is not None
+        n_users = len(self.le_user.classes_)  if fitted else 0
+        n_items = len(self.le_movie.classes_) if fitted else 0
+        return f"CollaborativeFilterRecommender(users={n_users}, items={n_items}, fitted={fitted})"
 
     # ── Internal helper ───────────────────────────────────────────────────────
     def _movie_info(self, movie_id: int) -> tuple[str, str]:
